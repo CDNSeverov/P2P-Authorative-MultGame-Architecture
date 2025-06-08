@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 
 import static java.lang.System.exit;
 
+// Test comment
 public class GUI {
     private JFrame frame;
     private JPanel boardPanel;

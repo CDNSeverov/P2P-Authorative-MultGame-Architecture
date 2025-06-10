@@ -46,6 +46,7 @@ public class Game implements Runnable{
         }
 
         if(winner == true) {
+            printBoard();
             System.out.println(player + " is the WINNER!");
         } else if (turn == 43) {
             System.out.println("Out of moves! TIE!");

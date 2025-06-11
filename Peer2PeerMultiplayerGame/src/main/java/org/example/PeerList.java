@@ -1,13 +1,15 @@
 package org.example;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PeerList {
+    private static LinkedList<Peer> peers = new LinkedList<>();
     private static ConcurrentLinkedQueue<Peer> waitingPlayers = new ConcurrentLinkedQueue<>();
 
     public synchronized static void addPlayer(Peer peer) {
-        // add registration logic or something
+        peers.add(peer);
     }
 
     public synchronized static void removePlayer(Peer peer) {
@@ -49,6 +51,26 @@ public class PeerList {
     private static void startGameSession(Peer player1, Peer player2) {
         System.out.println("Starting game between " + player1.getPlayerName() + " and " + player2.getPlayerName());
 
-        // Add instance of game
+        GameSession gameSession = new GameSession(player1, player2);
+        new Thread(gameSession).start();
+    }
+
+    public synchronized static void endGameSession(GameSession session){
+        Peer player1 = session.getPlayer1();
+        Peer player2 = session.getPlayer2();
+
+        removeFromQueue(player1);
+        removeFromQueue(player2);
+
+        player1.setInQueue(false);
+        player2.setInQueue(false);
+
+        try {
+            session.cleanup();
+        } catch (Exception e) {
+            System.out.println("Error cleaning up game session: " + e.getMessage());
+        }
+
+        System.out.println("Game session ended between " + player1.getPlayerName() + " and " + player2.getPlayerName());
     }
 }

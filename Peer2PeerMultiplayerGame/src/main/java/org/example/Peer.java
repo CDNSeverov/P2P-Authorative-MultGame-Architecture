@@ -4,8 +4,8 @@ import java.io.*;
 import java.net.Socket;
 
 public class Peer implements Runnable {
-    private Socket socket;
-    private BufferedReader reader;
+    Socket socket;
+    BufferedReader reader;
     private BufferedWriter writer;
     private String playerName;
     private boolean inQueue = false;
@@ -22,6 +22,10 @@ public class Peer implements Runnable {
 
     public boolean isInQueue() {
         return inQueue;
+    }
+
+    public void setInQueue(boolean inQueue) {
+        this.inQueue = inQueue;
     }
 
     public synchronized void sendMessage(String message) throws IOException {

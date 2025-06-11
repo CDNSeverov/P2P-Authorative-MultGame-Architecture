@@ -3,7 +3,9 @@ package org.example;
 import java.util.Scanner;
 
 public class Game implements Runnable{
-    Scanner in = new Scanner(System.in);
+    //Scanner in = new Scanner(System.in);
+    private transient Scanner in;
+    private boolean networkGame = false;
     public char[][] board = new char[6][7];
     public int turn = 1;
     public boolean winner = false;
@@ -15,7 +17,15 @@ public class Game implements Runnable{
     }
     public players player = players.PLAYER1;
 
-    public Game(boolean gameType) {
+    public Game (boolean gameType) {
+        this(gameType, false);
+    }
+    public Game(boolean gameType, boolean networkGame) {
+        this.networkGame = networkGame;
+        if (!networkGame) {
+            this.in = new Scanner(System.in);
+        }
+
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < 7; j++) {
                 board[i][j] = ' ';
@@ -29,6 +39,10 @@ public class Game implements Runnable{
 
     @Override
     public void run() {
+        if (networkGame) {
+            return;
+        }
+
         while(winner != true && turn <= 42) {
             if (gameType) {
                 gui.updateBoard();
@@ -145,6 +159,12 @@ public class Game implements Runnable{
                 System.out.print(board[i][j] + " | ");
             }
             System.out.println();
+        }
+    }
+
+    public void closeResources() {
+        if (in != null) {
+            in.close();
         }
     }
 }

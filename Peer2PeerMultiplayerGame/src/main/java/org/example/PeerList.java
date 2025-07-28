@@ -1,76 +1,79 @@
 package org.example;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.net.Socket;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 public class PeerList {
-    private static LinkedList<Peer> peers = new LinkedList<>();
-    private static ConcurrentLinkedQueue<Peer> waitingPlayers = new ConcurrentLinkedQueue<>();
+    private static List<Peer> peers = new ArrayList<>();
+    private static Map<String, String> contactIps = new HashMap<>();
+    private static Map<String, String> contactNames = new HashMap<>();
 
-    public synchronized static void addPlayer(Peer peer) {
+    // Just adds players to the peers list
+    public synchronized static void addPeer(Peer peer) {
         peers.add(peer);
     }
 
-    public synchronized static void removePlayer(Peer peer) {
-        removeFromQueue(peer);
-    }
-
-    public synchronized static void addToQueue(Peer peer) {
-        if (!waitingPlayers.contains(peer)) {
-            waitingPlayers.add(peer);
-            checkForMatches();
+    public static synchronized void removePeer(Peer peer) {
+        peers.remove(peer);
+        if (peer.isInLobby()) {
+            GameLobby.removeFromQueue(peer);
         }
     }
 
-    public synchronized static void removeFromQueue(Peer peer) {
-        waitingPlayers.remove(peer);
+    public static Peer findAuthority(Peer exclude1, Peer exclude2) {
+        List<Peer> potential = peers.stream()
+                .filter(p -> p != exclude1 && p != exclude2)
+                .collect(Collectors.toList());
+
+        if (potential.isEmpty()) return null;
+        return potential.get(new Random().nextInt(potential.size()));
     }
 
-    private static void checkForMatches() {
-        while (waitingPlayers.size() >= 2) {
-            Peer player1 = waitingPlayers.poll();
-            Peer player2 = waitingPlayers.poll();
-
-            if (player1 != null && player2 != null) {
-                try {
-                    player1.sendMessage("MATCH_FOUND" + player2.getPlayerName());
-                    player2.sendMessage("MATCH_FOUND" + player1.getPlayerName());
-
-                    startGameSession(player1, player2);
-                } catch (IOException e) {
-                    System.out.println("Error matching players: " + e.getMessage());
-
-                    if (player1 != null) waitingPlayers.add(player1);
-                    if (player2 != null) waitingPlayers.add(player2);
-                }
-            }
+    public synchronized static void broadcast(Message message) {
+        for (Peer peer : peers) {
+            peer.sendMessage(message);
         }
     }
-
-    private static void startGameSession(Peer player1, Peer player2) {
-        System.out.println("Starting game between " + player1.getPlayerName() + " and " + player2.getPlayerName());
-
-        GameSession gameSession = new GameSession(player1, player2);
-        new Thread(gameSession).start();
+    public static boolean addContacts(String ip, String username, String pubKey) {
+        if (contactNames.containsKey(pubKey)) {
+            return false;
+        }
+        contactIps.put(pubKey, ip);
+        contactNames.put(ip, username);
+        return true;
     }
 
-    public synchronized static void endGameSession(GameSession session){
-        Peer player1 = session.getPlayer1();
-        Peer player2 = session.getPlayer2();
+    public static String getName(String pubKey) {
+        return contactNames.get(pubKey);
+    }
+    public static String[] getPeerIps(int max) {
+        int ipsToPull = Math.min(max, peers.size());
+        Collections.shuffle(peers);
+        String[] ips = new String[ipsToPull];
+        for (int i = 0; i < ipsToPull; i++) {
+            ips[i] = peers.get(i).getIp();
+        }
+        return ips;
+    }
 
-        removeFromQueue(player1);
-        removeFromQueue(player2);
-
-        player1.setInQueue(false);
-        player2.setInQueue(false);
-
+    public static void connectToRemote(String ip, int port) {
         try {
-            session.cleanup();
-        } catch (Exception e) {
-            System.out.println("Error cleaning up game session: " + e.getMessage());
-        }
+            Socket socket = new Socket(ip, port);
+            Peer peer = new Peer(socket);
+            new Thread(peer).start();
 
-        System.out.println("Game session ended between " + player1.getPlayerName() + " and " + player2.getPlayerName());
+            if (peers.size() < 2) {
+                peer.sendMessage(new Message(MessageType.PEER_DISCOVERY_REQUEST, "2"));
+            }
+
+            peer.sendMessage(new Message(MessageType.SHARE_INFO, Constants.MY_IP + ";" + Constants.USERNAME + ";" + CryptoUtil.getPubKey()));
+        } catch (IOException e) {
+            System.out.println("<!> Could not connect to remote: " + ip);
+        }
     }
+
+
 }

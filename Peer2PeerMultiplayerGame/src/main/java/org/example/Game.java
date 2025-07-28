@@ -2,118 +2,45 @@ package org.example;
 
 import java.util.Scanner;
 
-public class Game implements Runnable{
-    //Scanner in = new Scanner(System.in);
-    private transient Scanner in;
-    private boolean networkGame = false;
+public class Game {
     public char[][] board = new char[6][7];
     public int turn = 1;
     public boolean winner = false;
-    public GUI gui;
-    public final boolean gameType;
-    public enum players {
-        PLAYER1,
-        PLAYER2,
-    }
-    public players player = players.PLAYER1;
+    public String currentPlayer;
 
-    public Game (boolean gameType) {
-        this(gameType, false);
-    }
-    public Game(boolean gameType, boolean networkGame) {
-        this.networkGame = networkGame;
-        if (!networkGame) {
-            this.in = new Scanner(System.in);
-        }
-
+    public Game() {
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < 7; j++) {
                 board[i][j] = ' ';
             }
         }
-        this.gameType = gameType;
-        if (gameType) {
-            gui = new GUI(this);
-        }
+        currentPlayer = "PLAYER1";
     }
 
-    @Override
-    public void run() {
-        if (networkGame) {
-            return;
+    public boolean makeMove(int column, String player) {
+        if (!player.equals(currentPlayer)) return false;
+
+        column -= 1;
+        if (column < 0 || column >= 7 || board[0][column] != ' ') {
+            return false;
         }
 
-        while(winner != true && turn <= 42) {
-            if (gameType) {
-                gui.updateBoard();
-            } else {
-                printBoard();
-                play();
-            }
-            isWinner();
-        }
-
-        if (player == players.PLAYER1) {
-            player = players.PLAYER2;
-        } else if (player == players.PLAYER2) {
-            player = players.PLAYER1;
-        }
-
-        if(winner == true) {
-            printBoard();
-            System.out.println(player + " is the WINNER!");
-        } else if (turn == 43) {
-            System.out.println("Out of moves! TIE!");
-        }
-    }
-
-    private void play() {
-        System.out.println(player + " pick a column!");
-
-        int play = in.nextInt() - 1;
-
-        if (play < 0 || play >= board[0].length) {
-            System.out.println("Invalid move!");
-            play();
-            return;
-        }
-
-        if (board[0][play] != ' ') {
-            System.out.println("Invalid move!");
-            play();
-            return;
-        }
-
-        for (int i = board.length - 1; i >= 0; i--) {
-            if (board[i][play] == ' ') {
-                if (player == players.PLAYER1) {
-                    board[i][play] = '1';
-                } else if (player == players.PLAYER2) {
-                    board[i][play] = '2';
-                }
+        for (int i = 5; i >= 0; i--) {
+            if (board[i][column] == ' ') {
+                board[i][column] = currentPlayer.equals("PLAYER1") ? 'X' : 'O';
                 break;
             }
         }
 
         winner = isWinner();
-
-        if (player == players.PLAYER1) {
-            player = players.PLAYER2;
-        } else if (player == players.PLAYER2) {
-            player = players.PLAYER1;
-        }
-
-        turn = turn++;
+        currentPlayer = currentPlayer.equals("PLAYER1") ? "PLAYER2" : "PLAYER1";
+        turn++;
+        return true;
     }
 
     boolean isWinner() {
-        char pman = '0';
+        char pman = currentPlayer.equals("PLAYER1") ? 'X' : 'O';
 
-        if (player == players.PLAYER1) {
-            pman = '1';
-        } else if (player == players.PLAYER2) {
-            pman = '2';
-        }
         //check for across
         for(int i = 0; i<board.length; i++){
             for (int j = 0; j < board[0].length - 3; j++){
@@ -150,21 +77,17 @@ public class Game implements Runnable{
         return false;
     }
 
-    public void printBoard() {
-        System.out.println("1 | 2 | 3 | 4 | 5 | 6 | 7 |");
-        System.out.println("===========================");
+    public String printBoard() {
+        StringBuilder sb = new StringBuilder();
+
+//        System.out.println("1 | 2 | 3 | 4 | 5 | 6 | 7 |");
+//        System.out.println("===========================");
 
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < 7; j++) {
-                System.out.print(board[i][j] + " | ");
+                sb.append(board[i][j]).append(" | ");
             }
-            System.out.println();
         }
-    }
-
-    public void closeResources() {
-        if (in != null) {
-            in.close();
-        }
+        return sb.toString();
     }
 }

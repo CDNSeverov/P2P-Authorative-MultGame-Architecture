@@ -3,74 +3,94 @@ package org.example;
 import java.io.*;
 import java.net.Socket;
 
+// Class is used to represent players/peers that connect to the server (basically represents the individual)
+
 public class Peer implements Runnable {
-    Socket socket;
-    BufferedReader reader;
-    private BufferedWriter writer;
+    private final Socket socket;
+    private final BufferedReader reader;
+    private final  BufferedWriter writer;
     private String playerName;
-    private boolean inQueue = false;
+    private boolean inLobby = false;
+    private GameSession currentGame = null;
+    private static Peer selfPeer;
 
     public Peer (Socket socket) throws IOException {
         this.socket = socket;
         this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+
+        if (selfPeer == null) {
+            selfPeer = this;
+        }
+    }
+
+    public static Peer getSelfPeer() {
+        return selfPeer;
     }
 
     public String getPlayerName() {
         return playerName;
     }
 
-    public boolean isInQueue() {
-        return inQueue;
+    public boolean isInLobby() {
+        return inLobby;
     }
 
     public void setInQueue(boolean inQueue) {
-        this.inQueue = inQueue;
+        this.inLobby = inQueue;
+    }
+    public GameSession getCurrentGame() {
+        return currentGame;
     }
 
-    public synchronized void sendMessage(String message) throws IOException {
-        writer.write(message + "\n");
-        writer.flush();
+    public void sendMessage(Message message) {
+        if (message.signature == null) {
+            CryptoUtil.signMessage(message);
+        }
+        try {
+            writer.write(message.toString() + "\n");
+            writer.flush();
+        } catch (IOException e) {
+            System.out.println("<!>Error sending message to " + playerName + e.getMessage());
+        }
     }
 
     @Override
     public void run() {
         try {
             playerName = reader.readLine();
-            if (playerName == null) {
-                throw new IOException("Connection closed during handshake");
-            }
-
-            System.out.println("Player registered: " + playerName);
-            PeerList.addPlayer(this);
+            System.out.println(playerName + " connected");
 
             while (true) {
-                String message = reader.readLine();
-                if (message == null) {
-                    break;
-                }
+                String rawMessage = reader.readLine();
+                if (rawMessage == null) break;
 
-                if ("JOIN_QUEUE".equals(message)) {
-                    inQueue = true;
-                    PeerList.addToQueue(this);
-                    System.out.println(playerName + " joined queue");
-                } else if ("LEAVE_QUEUE".equals(message)) {
-                    inQueue = false;
-                    PeerList.removeFromQueue(this);
-                    System.out.println(playerName + " left queue");
-                }
+                Message message = new Message(rawMessage);
+                TaskQueue.queue.add(new Task(this, message));
             }
-        } catch (Exception e) {
-            System.out.println("Error with player " + playerName + ": " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Connection with " + playerName + " lost");
         } finally {
-            inQueue = false;
-            PeerList.removePlayer(this);
-            try {
-                socket.close();
-            } catch (IOException e) {
-                System.out.println("Error closing socket: " + e.getMessage());
+            if (currentGame != null) {
+                currentGame.playerDisconnected(this);
             }
-            System.out.println("Player disconnected: " + playerName);
+            PeerList.removePeer(this);
         }
+    }
+
+    public String getIp() {
+        return socket.getInetAddress().toString().replace("/","");
+    }
+
+    public String getUsername() {
+        return playerName != null ? playerName : Constants.USERNAME;
+    }
+
+    public void setCurrentGame(GameSession currentGame) {
+        this.currentGame = currentGame;
+    }
+
+    public void setInLobby(boolean b) {
+        inLobby = b;
     }
 }

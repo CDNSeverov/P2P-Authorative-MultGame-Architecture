@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class GameLobby {
+public class GameQueue {
     private static Queue<Peer> waitingPlayers = new LinkedList<>();
     private static List<GameSession> activeSessions = new ArrayList<>();
 
@@ -14,22 +14,20 @@ public class GameLobby {
             waitingPlayers.add(peer);
             peer.setInQueue(true);
             peer.sendMessage(new Message(MessageType.PLAY_RESPONSE, "Waiting"));
-            checkMatches();
+            checkForMatches();
         }
     }
 
     public static synchronized void removeFromQueue(Peer peer) {
         waitingPlayers.remove(peer);
-        peer.setInLobby(false);
     }
 
-    private static void checkMatches() {
+    public static void checkForMatches() {
         while (waitingPlayers.size() >= 2) {
             Peer p1 = waitingPlayers.poll();
             Peer p2 = waitingPlayers.poll();
 
-            Peer authority = PeerList.findAuthority(p1, p2);
-            GameSession session = new GameSession(p1, p2, authority);
+            GameSession session = new GameSession(p1, p2);
             activeSessions.add(session);
         }
     }

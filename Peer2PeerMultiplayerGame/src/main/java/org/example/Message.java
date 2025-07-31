@@ -14,14 +14,14 @@ public class Message {
         String[] parts = rawMessage.split(" ", 5);
 
         if (parts.length != 5) {
-            throw new IOException("<!>Invalid message structure");
+            throw new IOException("<!> Invalid message structure");
         }
 
         this.id = parts[0];
         try {
             this.type = MessageType.valueOf(parts[1]);
         } catch (IllegalArgumentException e) {
-            throw new IOException("<!>Invalid message structure");
+            throw new IOException("<!> Invalid message structure");
         }
         this.sender = parts[2];
         this.signature = parts[3];
@@ -33,7 +33,6 @@ public class Message {
         this.type = type;
         this.body = body;
     }
-
     public String toString() {
         return id + " " + type + " " + sender + " " + signature + " " + body;
     }

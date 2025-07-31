@@ -2,45 +2,49 @@ package org.example;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.Buffer;
 
-// Class is used to represent players/peers that connect to the server (basically represents the individual)
-
-public class Peer implements Runnable {
-    private final Socket socket;
-    private final BufferedReader reader;
-    private final  BufferedWriter writer;
-    private String playerName;
-    private boolean inLobby = false;
+public class Peer implements Runnable{
+    private Socket socket;
+    private BufferedReader reader;
+    private BufferedWriter writer;
+    private static Peer peer;
     private GameSession currentGame = null;
-    private static Peer selfPeer;
+    private boolean inQueue = false;
 
-    public Peer (Socket socket) throws IOException {
+    public Peer(Socket socket) throws IOException {
         this.socket = socket;
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+        InputStream inputStream = socket.getInputStream();
+        OutputStream outputStream = socket.getOutputStream();
 
-        if (selfPeer == null) {
-            selfPeer = this;
-        }
+        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
+
+        reader = new BufferedReader(inputStreamReader);
+        writer = new BufferedWriter(outputStreamWriter);
+
+        this.peer = this;
     }
 
-    public static Peer getSelfPeer() {
-        return selfPeer;
-    }
-
-    public String getPlayerName() {
-        return playerName;
-    }
-
-    public boolean isInLobby() {
-        return inLobby;
-    }
-
-    public void setInQueue(boolean inQueue) {
-        this.inLobby = inQueue;
+    public String getIp() {
+        return socket.getInetAddress().toString().replace("/","");
     }
     public GameSession getCurrentGame() {
         return currentGame;
+    }
+    public static Peer getPeer() {
+        return peer;
+    }
+
+    public boolean getInQueue() {
+        return inQueue;
+    }
+
+    public void setCurrentGame(GameSession gameSession) {
+        this.currentGame = gameSession;
+    }
+    public void setInQueue(boolean b) {
+        this.inQueue = b;
     }
 
     public void sendMessage(Message message) {
@@ -48,49 +52,57 @@ public class Peer implements Runnable {
             CryptoUtil.signMessage(message);
         }
         try {
-            writer.write(message.toString() + "\n");
+            writer.write(message + "\n");
             writer.flush();
         } catch (IOException e) {
-            System.out.println("<!>Error sending message to " + playerName + e.getMessage());
+            System.out.println("Could not send message to peer");
+        }
+    }
+
+    public String waitForMessage() {
+        try {
+            return reader.readLine();
+        } catch (IOException e) {
+            return null;
         }
     }
 
     @Override
     public void run() {
-        try {
-            playerName = reader.readLine();
-            System.out.println(playerName + " connected");
+        PeerList.addPeer(this);
 
-            while (true) {
-                String rawMessage = reader.readLine();
-                if (rawMessage == null) break;
+        while (true) {
+            String rawMessage = waitForMessage();
 
-                Message message = new Message(rawMessage);
-                TaskQueue.queue.add(new Task(this, message));
+            if (rawMessage == null) {
+                System.out.println("<!> Connection to peer lost");
+                break;
             }
-        } catch (IOException e) {
-            System.out.println("Connection with " + playerName + " lost");
-        } finally {
-            if (currentGame != null) {
-                currentGame.playerDisconnected(this);
+
+            Message message = null;
+            try {
+                message = new Message(rawMessage);
+            } catch (IOException e) {
+                System.out.println("<!> Protocol Violation");
             }
-            PeerList.removePeer(this);
+
+            TaskQueue.queue.add(new Task(this, message));
         }
+
+        if (currentGame != null) {
+            currentGame.playerDisconnected(this);
+        }
+
+        PeerList.removePeer(this);
+
+        try {
+            reader.close();
+            writer.close();
+            socket.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
-    public String getIp() {
-        return socket.getInetAddress().toString().replace("/","");
-    }
-
-    public String getUsername() {
-        return playerName != null ? playerName : Constants.USERNAME;
-    }
-
-    public void setCurrentGame(GameSession currentGame) {
-        this.currentGame = currentGame;
-    }
-
-    public void setInLobby(boolean b) {
-        inLobby = b;
-    }
 }

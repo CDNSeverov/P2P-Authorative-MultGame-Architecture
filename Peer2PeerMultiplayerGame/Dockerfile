@@ -1,12 +1,14 @@
+# Use a base image with Java
 FROM openjdk:21-jdk
 
+# Create app directory
 WORKDIR /app
 
-# Copy the built jar file (you'll need to build it first in IntelliJ)
-COPY out/artifacts/projectSeverov_jar/projectSeverov.jar /app/connect4-p2p.jar
+# Copy the built JAR file
+COPY out/artifacts/projectSeverov_jar/projectSeverov.jar app.jar
 
-# Create a directory for peer-specific configurations
-RUN mkdir -p /app/config
+# Expose the default port (can be overridden)
+EXPOSE 7777
 
-# Entry point will be overridden by docker-compose for each peer
-CMD ["java", "-jar", "connect4-p2p.jar"]
+# Set the entry point
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -6,38 +6,50 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-// This class is used to connect all peers on the p2p network
-
-public class Server extends Thread {
-    private ExecutorService executor = Executors.newCachedThreadPool();
+public class Server extends Thread{
+    private ExecutorService executorService = Executors.newCachedThreadPool();
     public static final int PORT = 7777;
-    private volatile boolean running = true;
-    public void shutdown() {
-        running = false;
-        executor.shutdown();
-    }
-    // Making server
+
     @Override
     public void run() {
         Thread.currentThread().setName("Server");
 
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("Server started on PORT: " + PORT);
+        ServerSocket serverSocket = null;
 
-            while (running) {
-                try {
-                    Socket newConnection = serverSocket.accept();
-                    System.out.println("New player goonected: " + newConnection.getInetAddress().getHostAddress());
-                    executor.submit(new Peer(newConnection));
-                } catch (IOException e) {
-                    if (running) {
-                        System.out.println("Error accepting connection: " + e.getMessage());
-                    }
-                }
-
-            }
+        try {
+            serverSocket = new ServerSocket(PORT);
         } catch (IOException e) {
-            System.out.println("Could not start server: " + e.getMessage());
+            System.out.println("Could not run server " + e.getMessage());
+            return;
+        }
+
+        System.out.println("Server started on port " + PORT);
+
+        while (true) {
+            Socket newPeerConnection = null;
+
+            try {
+                newPeerConnection = serverSocket.accept();
+            } catch (IOException e) {
+                System.out.println("Could not accept new connection " + e.getMessage());
+                continue;
+            }
+
+            System.out.println("---- New connection: ----");
+            System.out.println("-> Local IP: "      + newPeerConnection.getLocalAddress());
+            System.out.println("-> Local PORT: "    + newPeerConnection.getLocalPort());
+            System.out.println("-> IP: "            + newPeerConnection.getInetAddress());
+            System.out.println("-> Port: "          + newPeerConnection.getPort());
+            System.out.println("-------------------------");
+
+            try {
+                executorService.submit(new Peer(newPeerConnection));
+            } catch (IOException e) {
+                System.out.println("Could not run peer: " + e.getMessage());
+            }
         }
     }
+
+
 }
+

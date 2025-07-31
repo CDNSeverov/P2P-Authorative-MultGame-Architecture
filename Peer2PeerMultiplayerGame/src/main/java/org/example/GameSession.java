@@ -2,20 +2,15 @@ package org.example;
 
 import java.util.UUID;
 
-// Class is used to make the communication to the game possible for the 2 players
-
 public class GameSession {
-
     private Peer player1;
     private Peer player2;
-    private Peer authority;
     private Game game;
     private String sessionId;
 
-    public GameSession(Peer player1, Peer player2, Peer authority) {
+    public GameSession(Peer player1, Peer player2) {
         this.player1 = player1;
         this.player2 = player2;
-        this.authority = authority;
         this.game = new Game();
         this.sessionId = UUID.randomUUID().toString();
 
@@ -31,8 +26,13 @@ public class GameSession {
     public Peer getPlayer1() {
         return this.player1;
     }
+
     public Peer getPlayer2() {
         return this.player2;
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 
     public void handleMove(Peer sender, int column) {
@@ -46,13 +46,6 @@ public class GameSession {
             } else if (game.turn > 42) {
                 endGame("DRAW");
             }
-
-            if (authority != null) {
-                Message verifyRequest = new Message(MessageType.VERIFICATION_REQUEST, sessionId + "|" + game.printBoard());
-                authority.sendMessage(verifyRequest);
-            } else {
-                sender.sendMessage(new Message(MessageType.GAME_STATE, "<!>Invalid Move"));
-            }
         }
     }
 
@@ -65,27 +58,23 @@ public class GameSession {
     }
 
     private void endGame(String result) {
-        Message endMessage = new Message(MessageType.GAME_END, result);
+        Message resultMessage = new Message(MessageType.GAME_END, result);
 
-        player1.sendMessage(endMessage);
-        player2.sendMessage(endMessage);
+        player1.sendMessage(resultMessage);
+        player2.sendMessage(resultMessage);
 
         player1.setCurrentGame(null);
         player2.setCurrentGame(null);
 
-        GameLobby.removeSession(this);
+        GameQueue.removeSession(this);
     }
 
     public void playerDisconnected(Peer peer) {
         Peer remaining = peer == player1 ? player2 : player1;
         if (remaining != null) {
-            remaining.sendMessage(new Message(MessageType.GAME_END, "<!> Opponent Disconnected"));
+            remaining.sendMessage(new Message(MessageType.GAME_END, "<!> Opponent disconnected"));
             remaining.setCurrentGame(null);
         }
-        GameLobby.removeSession(this);
-    }
-
-    public String getSessionId() {
-        return sessionId;
+        GameQueue.removeSession(this);
     }
 }

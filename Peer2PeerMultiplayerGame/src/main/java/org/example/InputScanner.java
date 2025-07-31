@@ -10,15 +10,10 @@ public class InputScanner extends Thread {
             String body = scanner.nextLine();
 
             if (body.equals("/play")) {
-                Peer peer = Peer.getPeer();
-                if (peer != null) {
-                    peer.getPeer().sendMessage(new Message(MessageType.PLAY_REQUEST, ""));
-                } else {
-                    System.out.println("<!> Not connected to any peer");
-                }
-            } else {
-                PeerList.broadcast(new Message(MessageType.CHAT, body));
+                Peer.sendPlayRequestStatic();
             }
+
+            PeerList.broadcast(new Message(MessageType.CHAT, body));
         }
     }
 }

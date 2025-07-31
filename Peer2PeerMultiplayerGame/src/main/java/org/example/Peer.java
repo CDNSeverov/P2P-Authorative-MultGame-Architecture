@@ -8,9 +8,9 @@ public class Peer implements Runnable{
     private Socket socket;
     private BufferedReader reader;
     private BufferedWriter writer;
-    private static Peer peer;
     private GameSession currentGame = null;
     private boolean inQueue = false;
+    private static Peer self;
 
     public Peer(Socket socket) throws IOException {
         this.socket = socket;
@@ -23,7 +23,7 @@ public class Peer implements Runnable{
         reader = new BufferedReader(inputStreamReader);
         writer = new BufferedWriter(outputStreamWriter);
 
-        this.peer = this;
+        self = this;
     }
 
     public String getIp() {
@@ -31,9 +31,6 @@ public class Peer implements Runnable{
     }
     public GameSession getCurrentGame() {
         return currentGame;
-    }
-    public static Peer getPeer() {
-        return peer;
     }
 
     public boolean getInQueue() {
@@ -45,6 +42,9 @@ public class Peer implements Runnable{
     }
     public void setInQueue(boolean b) {
         this.inQueue = b;
+    }
+    public static Peer getSelf() {
+        return self;
     }
 
     public void sendMessage(Message message) {
@@ -64,6 +64,19 @@ public class Peer implements Runnable{
             return reader.readLine();
         } catch (IOException e) {
             return null;
+        }
+    }
+
+    public void sendPlayRequest() {
+        this.sendMessage(new Message(MessageType.PLAY_REQUEST, ""));
+    }
+
+    // Static accessor
+    public static void sendPlayRequestStatic() {
+        if (self != null) {
+            self.sendPlayRequest();
+        } else {
+            System.out.println("<!> Peer does not exist");
         }
     }
 

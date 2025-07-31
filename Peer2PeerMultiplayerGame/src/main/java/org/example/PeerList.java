@@ -40,6 +40,7 @@ public class PeerList {
         }
     }
     public synchronized static void connectToRemote(String ip, int port) {
+        System.out.println("connectToRemote called");
         for (Peer p : peers) {
             if (p.getIp().equals(ip)) {
                 return;
@@ -74,4 +75,7 @@ public class PeerList {
         return ips;
     }
 
+    public static ArrayList<Peer> getPeers() {
+        return new ArrayList<>(peers);
+    }
 }

@@ -1,28 +1,48 @@
-version: '3.8'
+
+networks:
+  p2p-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.0.0/24
 
 services:
-  peer1:
+  bootstrap:
     build: .
-    ports:
-      - "7777:7777"
-    environment:
-      - PORT=7777
-    stdin_open: true  # Enable STDIN
-    tty: true         # Allocate pseudo-TTY
     networks:
-      - p2p-net
+      p2p-network:
+        ipv4_address: 192.168.0.26
+    environment:
+      MY_IP: "192.168.0.26"
+      BOOTSTRAP_IP: "192.168.0.26"
+      USERNAME: "bootstrap"
+    stdin_open: true
+    tty: true
 
   peer2:
     build: .
-    ports:
-      - "7778:7778"
+    networks:
+      p2p-network:
+        ipv4_address: 192.168.0.27
     environment:
-      - PORT=7778
+      MY_IP: "192.168.0.27"
+      BOOTSTRAP_IP: "192.168.0.26"
+      USERNAME: "peer2"
+    depends_on:
+      - bootstrap
     stdin_open: true
     tty: true
-    networks:
-      - p2p-net
 
-networks:
-  p2p-net:
-    driver: bridge
+  peer3:
+    build: .
+    networks:
+      p2p-network:
+        ipv4_address: 192.168.0.28
+    environment:
+      MY_IP: "192.168.0.28"
+      BOOTSTRAP_IP: "192.168.0.26"
+      USERNAME: "peer3"
+    depends_on:
+      - bootstrap
+    stdin_open: true
+    tty: true

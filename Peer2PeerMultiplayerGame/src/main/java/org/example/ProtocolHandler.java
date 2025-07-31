@@ -9,6 +9,7 @@ public class ProtocolHandler extends Thread{
     public void run() {
         while(true) {
             Task task = null;
+
             try {
                 task = TaskQueue.queue.take();
             } catch (InterruptedException e) {
@@ -45,6 +46,7 @@ public class ProtocolHandler extends Thread{
         }
     }
     private void handleChat(Task task) {
+        System.out.println(PeerList.getName(task.message.sender) + ": " + task.message.body);
         PeerList.broadcast(task.message);
     }
 
@@ -134,7 +136,7 @@ public class ProtocolHandler extends Thread{
             System.out.println();
         }
 
-        Peer self = Peer.getPeer();
+        Peer self = Peer.getSelf();
         if (self.getCurrentGame() != null) {
             String myRole = self == self.getCurrentGame().getPlayer1() ? "PLAYER1" : "PLAYER2";
             if (currentPlayer.equals(myRole)) {
@@ -146,6 +148,7 @@ public class ProtocolHandler extends Thread{
     }
 
     private void handleGameEnd(Task task) {
+        //idk
     }
 
 }

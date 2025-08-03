@@ -83,33 +83,28 @@ public class ProtocolHandler extends Thread{
         }
     }
 
+    // In ProtocolHandler.java
     public void handlePlayRequest(Task task) {
+        if (!Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+            return;
+        }
+
         String senderUsername = task.message.body;
-        ArrayList<Peer> peers = PeerList.peers;
+        Peer sender = task.sender;
 
-        System.out.println(task.message.body);
-
-        Peer sender = null;
-        for (Peer peer : peers) {
-            if (peer.getUsername().equals(senderUsername)) {
-                sender = peer;
-            }
+        if (senderUsername.equals(Constants.USERNAME) && sender == null) {
+            GameQueue.joinLobby(Peer.getSelf());
+            return;
         }
 
         if (!GameQueue.isInQueue(sender)) {
             GameQueue.addToWaitingQueue(sender);
+            System.out.println("Bootstrap added " + senderUsername + " to queue");
             GameQueue.checkForMatches();
-            System.out.println("Added " + sender.getUsername() + " to queue");
         }
     }
     private void handleGameStart(Task task) {
-        System.out.println(task.message.body);
-        String[] players = task.message.body.split(";");
-        String localUsername = Constants.USERNAME;
-
-        if (!players[0].equals(localUsername) && !players[1].equals(localUsername)) {
-            return;
-        }
+        String opponentUsername = task.message.body;
 
         if (Peer.getSelf().getInGame()) {
             System.out.println("Already in a game, ignoring match");
@@ -118,14 +113,16 @@ public class ProtocolHandler extends Thread{
 
         Peer opponent = null;
         for (Peer peer : PeerList.getPeers()) {
-            if (peer.getUsername().equals(players[0]) || peer.getUsername().equals(players[1]) && !peer.getUsername().equals(localUsername)) {
+            if (peer.getUsername().equals(opponentUsername)) {
                 opponent = peer;
                 break;
             }
         }
 
         if (opponent == null) {
-            System.out.println("<!> Waiting for connection to opponent...");
+            System.out.println("Could not find opponent: " + opponentUsername);
+            // Re-queue player
+            Peer.getSelf().setInQueue(false);
             GameQueue.joinLobby(Peer.getSelf());
             return;
         }

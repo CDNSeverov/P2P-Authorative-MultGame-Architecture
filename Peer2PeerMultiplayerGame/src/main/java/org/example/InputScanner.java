@@ -21,10 +21,23 @@ public class InputScanner extends Thread {
             if (body.contains("/play")) {
                 Peer localPeer = Peer.getSelf();
                 if (localPeer != null && !localPeer.getInQueue()) {
-                    GameQueue.joinLobby(localPeer);
+                    if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+                        GameQueue.joinLobby(localPeer);
+                    } else {
+                        Peer bootstrapPeer = null;
+                        for (Peer peer : PeerList.getPeers()) {
+                            if (peer.getIp().equals(Constants.BOOTSTRAP_IP)) {
+                                bootstrapPeer = peer;
+                                break;
+                            }
+                        }
+                        if (bootstrapPeer != null) {
+                            bootstrapPeer.sendMessage(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
+                            localPeer.setInQueue(true);
+                            System.out.println("Added " + Constants.USERNAME + " to queue");
+                        }
+                    }
                 }
-            } else {
-                PeerList.broadcast(new Message(MessageType.CHAT, body));
             }
         }
     }

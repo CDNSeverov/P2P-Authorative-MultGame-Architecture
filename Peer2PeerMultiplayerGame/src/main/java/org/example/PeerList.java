@@ -29,11 +29,10 @@ public class PeerList {
     public static String getName(String pubKey) {
         return contactNames.get(contactIps.get(pubKey));
     }
-
     public synchronized static void removePeer(Peer peer) {
         peers.remove(peer);
-        if (peer.getInQueue()) {
-            GameQueue.removeFromQueue(peer);
+        if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+            GameQueue.removeFromQueue(peer); // Cleanup bootstrap's queue
         }
     }
     public synchronized static void broadcast(Message message) {
@@ -82,7 +81,7 @@ public class PeerList {
 
     public static Peer getPeer(String username) {
         for (Peer peer : peers) {
-            if (peer.getUsername() == username) {
+            if (peer.getUsername().equals(username)) {
                 return peer;
             }
         }

@@ -11,13 +11,13 @@ public class GameQueue {
             return;
         }
 
-        waitingPlayers.removeIf(p -> !p.isConnectionAlive()) ;
         waitingPlayers.add(peer);
 
         peer.setInQueue(true);
-        System.out.println("Added " + Constants.USERNAME + " to queue");
-        PeerList.broadcast(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
-        checkForMatches();
+        System.out.println("Added " + peer.getUsername() + " to queue");
+        if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+            checkForMatches();
+        }
     }
 
     public static synchronized void addToWaitingQueue(Peer peer) {
@@ -39,11 +39,8 @@ public class GameQueue {
             Peer player1 = waitingPlayers.poll();
             Peer player2 = waitingPlayers.poll();
 
-            if (player1.isConnectionAlive() && player2.isConnectionAlive()) {
-                player1.sendMessage(new Message(MessageType.GAME_START, player1.getUsername() + ";" + player2.getUsername()));
-                player2.sendMessage(new Message(MessageType.GAME_START, player1.getUsername() + ";" + player2.getUsername()));
-            }
-
+            player1.sendMessage(new Message(MessageType.GAME_START, player2.getUsername()));
+            player2.sendMessage(new Message(MessageType.GAME_START, player1.getUsername()));
         }
     }
 

@@ -9,8 +9,12 @@ public class Peer implements Runnable{
     private BufferedReader reader;
     private BufferedWriter writer;
     private GameSession currentGame = null;
+    private boolean inGame = false;
     private boolean inQueue = false;
+    private boolean connected = true;
     private static Peer self;
+    private String playerRole;
+    private String remoteUsername;
 
     public Peer(Socket socket) throws IOException {
         this.socket = socket;
@@ -36,12 +40,29 @@ public class Peer implements Runnable{
     public boolean getInQueue() {
         return inQueue;
     }
-
+    public String getPlayerRole() {
+        return playerRole;
+    }
+    public String getUsername() {
+        return remoteUsername != null ? remoteUsername : Constants.USERNAME;
+    }
+    public boolean getInGame() {
+        return inGame;
+    }
+    public void setInGame(boolean inGame) {
+        this.inGame = inGame;
+    }
+    public void setRemoteUsername(String username) {
+        this.remoteUsername = username;
+    }
     public void setCurrentGame(GameSession gameSession) {
         this.currentGame = gameSession;
     }
     public void setInQueue(boolean b) {
         this.inQueue = b;
+    }
+    public void setPlayerRole(String role) {
+        this.playerRole = role;
     }
     public static Peer getSelf() {
         return self;
@@ -55,7 +76,7 @@ public class Peer implements Runnable{
             writer.write(message + "\n");
             writer.flush();
         } catch (IOException e) {
-            System.out.println("Could not send message to peer");
+            System.out.println("<!> Could not send message to peer");
         }
     }
 
@@ -71,7 +92,6 @@ public class Peer implements Runnable{
         this.sendMessage(new Message(MessageType.PLAY_REQUEST, ""));
     }
 
-    // Static accessor
     public static void sendPlayRequestStatic() {
         if (self != null) {
             self.sendPlayRequest();
@@ -84,7 +104,7 @@ public class Peer implements Runnable{
     public void run() {
         PeerList.addPeer(this);
 
-        while (true) {
+        while (connected) {
             String rawMessage = waitForMessage();
 
             if (rawMessage == null) {
@@ -117,5 +137,4 @@ public class Peer implements Runnable{
         }
 
     }
-
 }

@@ -6,7 +6,6 @@ public enum MessageType {
     PEER_DISCOVERY_RESPONSE,
     SHARE_INFO,
     PLAY_REQUEST,
-    PLAY_RESPONSE,
     GAME_START,
     GAME_MOVE,
     GAME_STATE,

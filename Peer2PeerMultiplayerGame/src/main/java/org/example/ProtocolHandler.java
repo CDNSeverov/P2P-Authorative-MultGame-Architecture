@@ -1,5 +1,6 @@
 package org.example;
 
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class ProtocolHandler extends Thread{
@@ -27,6 +28,9 @@ public class ProtocolHandler extends Thread{
             }
             history.add(task.message.id);
 
+//            System.out.println(task.message.type);
+//            System.out.println(task.message.body);
+
             try {
                 switch (task.message.type) {
                     case CHAT -> handleChat(task);
@@ -34,7 +38,6 @@ public class ProtocolHandler extends Thread{
                     case PEER_DISCOVERY_RESPONSE -> handlePeerDiscoveryResponse(task);
                     case SHARE_INFO -> handleShareInfo(task);
                     case PLAY_REQUEST -> handlePlayRequest(task);
-                    case PLAY_RESPONSE -> handlePlayResponse(task);
                     case GAME_START -> handleGameStart(task);
                     case GAME_MOVE -> handleGameMove(task);
                     case GAME_STATE -> handleGameState(task);
@@ -55,7 +58,7 @@ public class ProtocolHandler extends Thread{
         String[] ips = PeerList.getPeerIps(numOfIps);
         String body = String.join(";", ips);
 
-        task.sender.sendMessage(new Message(MessageType.PEER_DISCOVERY_REQUEST, body));
+        task.sender.sendMessage(new Message(MessageType.PEER_DISCOVERY_RESPONSE, body));
     }
 
     private void handlePeerDiscoveryResponse(Task task) {
@@ -69,26 +72,35 @@ public class ProtocolHandler extends Thread{
 
     private void handleShareInfo(Task task) {
         String[] tokens = task.message.body.split(";");
-        System.out.println("User " + tokens[1] + " entered the chat {" + tokens[0] + "}");
-        boolean newContact = PeerList.addContacts(tokens[0], tokens[1], tokens[2]);
-        if (newContact) {
+        if (tokens.length < 3) return;
+
+        if (!PeerList.contactIps.containsKey(tokens[2])) {
+            System.out.println("User " + tokens[1] + " entered the chat {" + tokens[0] + "}");
+            PeerList.addContacts(tokens[0], tokens[1], tokens[2]);
             PeerList.broadcast(new Message(MessageType.SHARE_INFO, Constants.MY_IP + ";" + Constants.USERNAME + ";" + CryptoUtil.getPubKey()));
+            task.sender.setRemoteUsername(tokens[1]);
         }
     }
 
+    // In handlePlayRequest method
     public void handlePlayRequest(Task task) {
-        GameQueue.joinLobby(task.sender);
-    }
+        String senderPubKey = task.message.sender; // Use public key as identifier
+        ArrayList<Peer> peers = PeerList.getPeers();
 
-    private void handlePlayResponse(Task task) {
-        String status = task.message.body;
-        if (status.equals("Waiting")) {
-            System.out.println("Waiting for another player to join...");
-        } else {
-            System.out.println("Play response: " + status);
+        Peer sender = null;
+        for (Peer peer : peers) {
+            if (peer.getUsername().equals(PeerList.getName(senderPubKey))) {
+                sender = peer;
+                break;
+            }
+        }
+
+        if (sender != null && !GameQueue.isInQueue(sender)) {
+            GameQueue.addToWaitingQueue(sender);
+            System.out.println("Added " + sender.getUsername() + " to queue");
+            GameQueue.checkForMatches();
         }
     }
-
     private void handleGameStart(Task task) {
         String playerRole = task.message.body;
         System.out.println("\nGame started. You are " + playerRole);
@@ -102,53 +114,86 @@ public class ProtocolHandler extends Thread{
     }
 
     private void handleGameMove(Task task) {
-        if (task.sender.getCurrentGame() != null) {
-            try {
-                int column = Integer.parseInt(task.message.body);
-                task.sender.getCurrentGame().handleMove(task.sender, column);
-            } catch (NumberFormatException e) {
-                task.sender.sendMessage(new Message(MessageType.GAME_STATE, "<!> Invalid move"));
-            }
+        if (task.sender.getCurrentGame() == null) {
+            System.out.println("<!> Move from player not in game: " + PeerList.getName(task.message.sender));
+            return;
+        }
+
+        try {
+            int column = Integer.parseInt(task.message.body);
+            task.sender.getCurrentGame().handleMove(task.sender, column);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid move format from " + PeerList.getName(task.message.sender));
         }
     }
     private void handleGameState(Task task) {
-        String[] parts = task.message.body.split("\\|");
-        String boardState = parts[0];
-        String currentPlayer = parts.length > 1 ? parts[1] : "PLAYER1";
-
-        String[] rows = boardState.split("\\|");
-        char[][] board = new char[6][7];
-        for (int i = 0; i < 6; i++) {
-            String[] cells = rows[i].split(",");
-            for (int j = 0; j < 7; j++) {
-                board[i][j] = rows[i].charAt(0);
+        try {
+            // Split board state and current player
+            String[] parts = task.message.body.split("\\|", 2);
+            if (parts.length < 2) {
+                System.out.println("<!> Invalid game state format");
+                return;
             }
-        }
 
-        System.out.println("\nCurrent board:");
-        System.out.println("1 2 3 4 5 6 7");
-        System.out.println("=============");
-        for (int i = 0; i < 6; i++) {
-            for (int j = 0; j < 7; j++) {
-                System.out.println(board[i][j] == ' ' ? '.' : board[i][j]);
-                System.out.println(" ");
-            }
-            System.out.println();
-        }
+            String boardState = parts[0];
+            String currentPlayer = parts[1];
 
-        Peer self = Peer.getSelf();
-        if (self.getCurrentGame() != null) {
-            String myRole = self == self.getCurrentGame().getPlayer1() ? "PLAYER1" : "PLAYER2";
-            if (currentPlayer.equals(myRole)) {
-                System.out.println("Its your turn. Enter a colum between 1-7");
-            } else {
-                System.out.println("Waiting for opponents move...");
+            // Split into rows
+            String[] rows = boardState.split(";");
+            if (rows.length != 6) {
+                System.out.println("<!> Expected 6 rows, got " + rows.length);
+                return;
             }
+
+            char[][] board = new char[6][7];
+            for (int i = 0; i < 6; i++) {
+                if (rows[i].isEmpty()) continue;
+
+                String[] cells = rows[i].split(",");
+                if (cells.length != 7) {
+                    System.out.println("<!> Row " + i + " has invalid cell count: " + cells.length);
+                    return;
+                }
+
+                for (int j = 0; j < 7; j++) {
+                    board[i][j] = cells[j].charAt(0) == '.' ? ' ' : cells[j].charAt(0);
+                }
+            }
+
+            System.out.println("\nCurrent board:");
+            System.out.println("1 2 3 4 5 6 7");
+            System.out.println("-------------");
+            for (int i = 0; i < 6; i++) {
+                for (int j = 0; j < 7; j++) {
+                    System.out.print(board[i][j]);
+                    System.out.print(" ");
+                }
+                System.out.println();
+            }
+        } catch (Exception e) {
+            System.out.println("<!> Error processing game state: " + e.getMessage());
         }
     }
 
     private void handleGameEnd(Task task) {
-        //idk
+        String result = task.message.body;
+        switch (result) {
+            case "PLAYER1":
+            case "PLAYER2":
+                System.out.println("\nGame over! " + result + " wins!");
+                break;
+            case "DRAW":
+                System.out.println("\nGame ended in a draw!");
+                break;
+            case "OPPONENT_DISCONNECTED":
+                System.out.println("\nOpponent disconnected! Game ended.");
+                break;
+            default:
+                System.out.println("\nGame ended: " + result);
+        }
+        task.sender.setCurrentGame(null);
+        task.sender.setInGame(false);
+        System.out.println("Type /play to start a new game");
     }
 
 }

@@ -1,7 +1,5 @@
 package org.example;
 
-// Constants or config file that holds all the constant values
-
 public class Constants {
     public static final int PORT = 7777;
     public static final String MY_IP = System.getenv("MY_IP");

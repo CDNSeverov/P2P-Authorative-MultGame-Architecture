@@ -1,34 +1,44 @@
 package org.example;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 
 public class GameQueue {
     private static Queue<Peer> waitingPlayers = new LinkedList<>();
     private static List<GameSession> activeSessions = new ArrayList<>();
 
     public static synchronized void joinLobby(Peer peer) {
-        if (!waitingPlayers.contains(peer)) {
-            waitingPlayers.add(peer);
-            peer.setInQueue(true);
-            peer.sendMessage(new Message(MessageType.PLAY_RESPONSE, "Waiting"));
-            checkForMatches();
+        if (waitingPlayers.contains(peer) || peer.getInQueue()) {
+            return;
         }
+
+        waitingPlayers.add(peer);
+
+        System.out.println("Added " + Constants.USERNAME + " to queue");
+        peer.setInQueue(true);
+        PeerList.broadcast(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
+        checkForMatches();
+    }
+
+    public static synchronized void addToWaitingQueue(Peer peer) {
+        waitingPlayers.add(peer);
     }
 
     public static synchronized void removeFromQueue(Peer peer) {
         waitingPlayers.remove(peer);
+        peer.setInQueue(false);
+    }
+    public static synchronized boolean isInQueue(Peer peer) {
+        return waitingPlayers.contains(peer);
     }
 
-    public static void checkForMatches() {
-        while (waitingPlayers.size() >= 2) {
+    public static synchronized void checkForMatches() {
+        if (waitingPlayers.size() >= 2) {
             Peer p1 = waitingPlayers.poll();
             Peer p2 = waitingPlayers.poll();
 
-            GameSession session = new GameSession(p1, p2);
-            activeSessions.add(session);
+            if (p1 != null && p2 != null) {
+                new GameSession(p1, p2);
+            }
         }
     }
 

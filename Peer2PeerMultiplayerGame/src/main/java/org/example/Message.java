@@ -33,6 +33,7 @@ public class Message {
         this.type = type;
         this.body = body;
     }
+
     public String toString() {
         return id + " " + type + " " + sender + " " + signature + " " + body;
     }

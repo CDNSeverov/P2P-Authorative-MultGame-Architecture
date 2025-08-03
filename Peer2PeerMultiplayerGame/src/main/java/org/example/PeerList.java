@@ -9,11 +9,13 @@ import java.util.Collections;
 import java.util.HashMap;
 
 public class PeerList {
-    private static ArrayList<Peer> peers = new ArrayList<>();
-    private static HashMap<String, String> contactIps = new HashMap<>();
+    public static ArrayList<Peer> peers = new ArrayList<>();
+    public static HashMap<String, String> contactIps = new HashMap<>();
     private static HashMap<String, String> contactNames = new HashMap<>();
     public synchronized static void addPeer(Peer peer) {
-        peers.add(peer);
+        if (!peer.getIp().equals(Constants.MY_IP)) {
+            peers.add(peer);
+        }
     }
 
     public static boolean addContacts(String ip, String username, String pubkey) {
@@ -24,8 +26,13 @@ public class PeerList {
         contactNames.put(ip, username);
         return true;
     }
+    public static String getUsernameByPubKey(String pubKey) {
+        return contactNames.get(contactIps.get(pubKey));
+    }
+
+    // Update getName method
     public static String getName(String pubKey) {
-        return contactNames.get(pubKey);
+        return contactNames.get(contactIps.get(pubKey));
     }
 
     public synchronized static void removePeer(Peer peer) {
@@ -40,7 +47,6 @@ public class PeerList {
         }
     }
     public synchronized static void connectToRemote(String ip, int port) {
-        System.out.println("connectToRemote called");
         for (Peer p : peers) {
             if (p.getIp().equals(ip)) {
                 return;
@@ -77,5 +83,14 @@ public class PeerList {
 
     public static ArrayList<Peer> getPeers() {
         return new ArrayList<>(peers);
+    }
+
+    public static Peer getPeer(String username) {
+        for (Peer peer : peers) {
+            if (peer.getUsername() == username) {
+                return peer;
+            }
+        }
+        return null;
     }
 }

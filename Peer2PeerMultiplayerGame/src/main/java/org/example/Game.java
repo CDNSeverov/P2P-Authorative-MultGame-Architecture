@@ -79,14 +79,12 @@ public class Game {
 
     public String printBoard() {
         StringBuilder sb = new StringBuilder();
-
-//        System.out.println("1 | 2 | 3 | 4 | 5 | 6 | 7 |");
-//        System.out.println("===========================");
-
         for (int i = 0; i < 6; i++) {
             for (int j = 0; j < 7; j++) {
-                sb.append(board[i][j]).append(" | ");
+                sb.append(board[i][j] == ' ' ? '.' : board[i][j]);
+                if (j < 6) sb.append(",");
             }
+            if (i < 5) sb.append(";");
         }
         return sb.toString();
     }

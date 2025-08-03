@@ -26,11 +26,6 @@ public class PeerList {
         contactNames.put(ip, username);
         return true;
     }
-    public static String getUsernameByPubKey(String pubKey) {
-        return contactNames.get(contactIps.get(pubKey));
-    }
-
-    // Update getName method
     public static String getName(String pubKey) {
         return contactNames.get(contactIps.get(pubKey));
     }

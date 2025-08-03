@@ -10,23 +10,18 @@ public class InputScanner extends Thread {
             String body = scanner.nextLine();
             Peer self = Peer.getSelf();
 
-            if (self != null && self.getInGame()) {
-                try {
-                    int column = Integer.parseInt(body);
-                    if (column < 1 || column > 7) {
-                        System.out.println("<!> Column must be between 1-7");
-                    } else {
-                        self.sendMessage(new Message(MessageType.GAME_MOVE, body));
-                    }
-                } catch (NumberFormatException e) {
-                    System.out.println("<!> In-game, enter 1-7 for moves");
+            if (self.getInGame()) {
+                if (Integer.parseInt(body) < 1 || Integer.parseInt(body) > 7) {
+                    System.out.println("<!> Wrong input");
+                    continue;
                 }
-                continue; // Critical: Skip chat processing
-            }
 
-            if (body.trim().equals("/play")) {
-                if (self != null && !self.getInQueue()) {
-                    GameQueue.joinLobby(self);
+                Peer.getSelf().sendMessage(new Message(MessageType.GAME_MOVE, body));
+            }
+            if (body.contains("/play")) {
+                Peer localPeer = Peer.getSelf();
+                if (localPeer != null && !localPeer.getInQueue()) {
+                    GameQueue.joinLobby(localPeer);
                 }
             } else {
                 PeerList.broadcast(new Message(MessageType.CHAT, body));

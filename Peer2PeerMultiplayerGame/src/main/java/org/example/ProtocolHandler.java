@@ -1,3 +1,4 @@
+
 package org.example;
 
 import java.net.Socket;
@@ -28,7 +29,7 @@ public class ProtocolHandler extends Thread{
             }
             history.add(task.message.id);
 
-//            System.out.println(task.message.type);
+            System.out.println(task.message.type);
 //            System.out.println(task.message.body);
 
             try {
@@ -82,35 +83,54 @@ public class ProtocolHandler extends Thread{
         }
     }
 
-    // In handlePlayRequest method
     public void handlePlayRequest(Task task) {
-        String senderPubKey = task.message.sender; // Use public key as identifier
-        ArrayList<Peer> peers = PeerList.getPeers();
+        String senderUsername = task.message.body;
+        ArrayList<Peer> peers = PeerList.peers;
+
+        System.out.println(task.message.body);
 
         Peer sender = null;
         for (Peer peer : peers) {
-            if (peer.getUsername().equals(PeerList.getName(senderPubKey))) {
+            if (peer.getUsername().equals(senderUsername)) {
                 sender = peer;
+            }
+        }
+
+        if (!GameQueue.isInQueue(sender)) {
+            GameQueue.addToWaitingQueue(sender);
+            GameQueue.checkForMatches();
+            System.out.println("Added " + sender.getUsername() + " to queue");
+        }
+    }
+    private void handleGameStart(Task task) {
+        System.out.println(task.message.body);
+        String[] players = task.message.body.split(";");
+        String localUsername = Constants.USERNAME;
+
+        if (!players[0].equals(localUsername) && !players[1].equals(localUsername)) {
+            return;
+        }
+
+        if (Peer.getSelf().getInGame()) {
+            System.out.println("Already in a game, ignoring match");
+            return;
+        }
+
+        Peer opponent = null;
+        for (Peer peer : PeerList.getPeers()) {
+            if (peer.getUsername().equals(players[0]) || peer.getUsername().equals(players[1]) && !peer.getUsername().equals(localUsername)) {
+                opponent = peer;
                 break;
             }
         }
 
-        if (sender != null && !GameQueue.isInQueue(sender)) {
-            GameQueue.addToWaitingQueue(sender);
-            System.out.println("Added " + sender.getUsername() + " to queue");
-            GameQueue.checkForMatches();
+        if (opponent == null) {
+            System.out.println("<!> Waiting for connection to opponent...");
+            GameQueue.joinLobby(Peer.getSelf());
+            return;
         }
-    }
-    private void handleGameStart(Task task) {
-        String playerRole = task.message.body;
-        System.out.println("\nGame started. You are " + playerRole);
-        System.out.println("Enter a column between (1-7) to make your moves");
 
-        if (playerRole.equals("PLAYER1")) {
-            System.out.println("Its your turn first");
-        } else {
-            System.out.println("Waiting for your opponents move...");
-        }
+        new GameSession(Peer.getSelf(), opponent);
     }
 
     private void handleGameMove(Task task) {

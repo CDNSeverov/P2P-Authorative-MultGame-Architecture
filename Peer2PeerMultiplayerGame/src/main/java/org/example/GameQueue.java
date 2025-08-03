@@ -3,7 +3,7 @@ package org.example;
 import java.util.*;
 
 public class GameQueue {
-    private static Queue<Peer> waitingPlayers = new LinkedList<>();
+    public static Queue<Peer> waitingPlayers = new LinkedList<>();
     private static List<GameSession> activeSessions = new ArrayList<>();
 
     public static synchronized void joinLobby(Peer peer) {
@@ -11,16 +11,19 @@ public class GameQueue {
             return;
         }
 
+        waitingPlayers.removeIf(p -> !p.isConnectionAlive()) ;
         waitingPlayers.add(peer);
 
-        System.out.println("Added " + Constants.USERNAME + " to queue");
         peer.setInQueue(true);
+        System.out.println("Added " + Constants.USERNAME + " to queue");
         PeerList.broadcast(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
         checkForMatches();
     }
 
     public static synchronized void addToWaitingQueue(Peer peer) {
         waitingPlayers.add(peer);
+        peer.setInQueue(true);
+        checkForMatches();
     }
 
     public static synchronized void removeFromQueue(Peer peer) {
@@ -31,14 +34,16 @@ public class GameQueue {
         return waitingPlayers.contains(peer);
     }
 
-    public static synchronized void checkForMatches() {
+    public static void checkForMatches() {
         if (waitingPlayers.size() >= 2) {
-            Peer p1 = waitingPlayers.poll();
-            Peer p2 = waitingPlayers.poll();
+            Peer player1 = waitingPlayers.poll();
+            Peer player2 = waitingPlayers.poll();
 
-            if (p1 != null && p2 != null) {
-                new GameSession(p1, p2);
+            if (player1.isConnectionAlive() && player2.isConnectionAlive()) {
+                player1.sendMessage(new Message(MessageType.GAME_START, player1.getUsername() + ";" + player2.getUsername()));
+                player2.sendMessage(new Message(MessageType.GAME_START, player1.getUsername() + ";" + player2.getUsername()));
             }
+
         }
     }
 

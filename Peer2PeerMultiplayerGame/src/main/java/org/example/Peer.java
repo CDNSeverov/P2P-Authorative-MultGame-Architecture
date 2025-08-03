@@ -137,4 +137,12 @@ public class Peer implements Runnable{
         }
 
     }
+    public boolean isConnectionAlive() {
+        try {
+            socket.sendUrgentData(0xFF);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
 }

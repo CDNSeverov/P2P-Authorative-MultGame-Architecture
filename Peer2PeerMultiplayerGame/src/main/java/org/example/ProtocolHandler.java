@@ -29,7 +29,7 @@ public class ProtocolHandler extends Thread{
             }
             history.add(task.message.id);
 
-            System.out.println(task.message.type);
+//            System.out.println(task.message.type);
 //            System.out.println(task.message.body);
 
             try {
@@ -104,30 +104,41 @@ public class ProtocolHandler extends Thread{
         }
     }
     private void handleGameStart(Task task) {
-        String opponentUsername = task.message.body;
+        String[] parts = task.message.body.split(":", 2);
+        if (parts.length != 2) {
+            System.out.println("Invalid GAME_START message: " + task.message.body);
+            return;
+        }
+
+        String assignedRole = parts[0];
+        String opponentUsername = parts[1];
 
         if (Peer.getSelf().getInGame()) {
             System.out.println("Already in a game, ignoring match");
             return;
         }
 
-        Peer opponent = null;
-        for (Peer peer : PeerList.getPeers()) {
-            if (peer.getUsername().equals(opponentUsername)) {
-                opponent = peer;
-                break;
-            }
-        }
-
+        Peer opponent = PeerList.getPeer(opponentUsername);
         if (opponent == null) {
             System.out.println("Could not find opponent: " + opponentUsername);
-            // Re-queue player
             Peer.getSelf().setInQueue(false);
             GameQueue.joinLobby(Peer.getSelf());
             return;
         }
 
-        new GameSession(Peer.getSelf(), opponent);
+        Peer.getSelf().setPlayerRole(assignedRole);
+
+        GameSession session = new GameSession(Peer.getSelf(), opponent);
+
+        System.out.println("\nGame started! Your opponent is " + opponentUsername);
+        System.out.println("You are: " + assignedRole);
+        session.getGame().printBoard();
+
+        if (assignedRole.equals("PLAYER1")) {
+            System.out.println("You go first! Enter column number (1-7):");
+        } else {
+            System.out.println("Opponent goes first. Waiting for their move...");
+        }
     }
 
     private void handleGameMove(Task task) {
@@ -137,12 +148,15 @@ public class ProtocolHandler extends Thread{
         }
 
         try {
-            int column = Integer.parseInt(task.message.body);
-            task.sender.getCurrentGame().handleMove(task.sender, column);
+            String[] tokens = task.message.body.split(";");
+            int column = Integer.parseInt(tokens[0]);
+            task.sender.getCurrentGame().handleMove(tokens[1], column);
         } catch (NumberFormatException e) {
             System.out.println("Invalid move format from " + PeerList.getName(task.message.sender));
         }
     }
+
+
     private void handleGameState(Task task) {
         try {
             // Split board state and current player
@@ -155,37 +169,28 @@ public class ProtocolHandler extends Thread{
             String boardState = parts[0];
             String currentPlayer = parts[1];
 
-            // Split into rows
-            String[] rows = boardState.split(";");
-            if (rows.length != 6) {
-                System.out.println("<!> Expected 6 rows, got " + rows.length);
-                return;
-            }
+            // Update local game state
+            if (task.sender.getCurrentGame() != null) {
+                Game game = task.sender.getCurrentGame().getGame();
+                game.deserializeBoard(boardState);
+                game.currentPlayer = currentPlayer;
 
-            char[][] board = new char[6][7];
-            for (int i = 0; i < 6; i++) {
-                if (rows[i].isEmpty()) continue;
-
-                String[] cells = rows[i].split(",");
-                if (cells.length != 7) {
-                    System.out.println("<!> Row " + i + " has invalid cell count: " + cells.length);
-                    return;
+                // Print the board
+                System.out.println("\nCurrent board:");
+                System.out.println("1 2 3 4 5 6 7");
+                System.out.println("-------------");
+                for (int i = 0; i < 6; i++) {
+                    for (int j = 0; j < 7; j++) {
+                        System.out.print(game.board[i][j] == ' ' ? '.' : game.board[i][j]);
+                        System.out.print(" ");
+                    }
+                    System.out.println();
                 }
 
-                for (int j = 0; j < 7; j++) {
-                    board[i][j] = cells[j].charAt(0) == '.' ? ' ' : cells[j].charAt(0);
+                // Prompt for next move if it's our turn
+                if (Peer.getSelf().getPlayerRole().equals(currentPlayer)) {
+                    System.out.println("Your turn! Enter column number (1-7):");
                 }
-            }
-
-            System.out.println("\nCurrent board:");
-            System.out.println("1 2 3 4 5 6 7");
-            System.out.println("-------------");
-            for (int i = 0; i < 6; i++) {
-                for (int j = 0; j < 7; j++) {
-                    System.out.print(board[i][j]);
-                    System.out.print(" ");
-                }
-                System.out.println();
             }
         } catch (Exception e) {
             System.out.println("<!> Error processing game state: " + e.getMessage());
@@ -208,8 +213,12 @@ public class ProtocolHandler extends Thread{
             default:
                 System.out.println("\nGame ended: " + result);
         }
-        task.sender.setCurrentGame(null);
-        task.sender.setInGame(false);
+
+        Peer self = Peer.getSelf();
+        self.setCurrentGame(null);
+        self.setInGame(false);
+        self.setPlayerRole(null);
+
         System.out.println("Type /play to start a new game");
     }
 

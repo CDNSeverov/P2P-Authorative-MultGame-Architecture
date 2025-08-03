@@ -29,11 +29,7 @@ public class GameSession {
         GameQueue.removeFromQueue(player1);
         GameQueue.removeFromQueue(player2);
 
-        player1.setPlayerRole("PLAYER1");
-        player2.setPlayerRole("PLAYER2");
-
         sendGameState();
-        System.out.println("here");
     }
 
     public Peer getPlayer1() {
@@ -48,19 +44,22 @@ public class GameSession {
         return sessionId;
     }
 
-    public void handleMove(Peer sender, int column) {
-        String player = sender.getPlayerRole();
+    public Game getGame() {
+        return this.game;
+    }
 
-        if (!player.equals(game.currentPlayer)) {
+    // Fixed move handling
+    public void handleMove(String role, int column) {
+        if (!role.equals(game.currentPlayer)) {
             System.out.println("<!> Not your turn");
             return;
         }
 
-        if (game.makeMove(column, player)) {
+        if (game.makeMove(column, role)) {
             sendGameState();
 
             if (game.winner) {
-                endGame(player);
+                endGame(role);
             } else if (game.turn > 42) {
                 endGame("DRAW");
             }
@@ -71,6 +70,7 @@ public class GameSession {
         String state = game.printBoard() + "|" + game.currentPlayer;
         Message stateMessage = new Message(MessageType.GAME_STATE, state);
 
+        // Send to both players (removed sender check)
         player1.sendMessage(stateMessage);
         player2.sendMessage(stateMessage);
     }
@@ -85,23 +85,26 @@ public class GameSession {
         player2.setCurrentGame(null);
         player1.setInGame(false);
         player2.setInGame(false);
+        player1.setPlayerRole(null);
+        player2.setPlayerRole(null);
 
         GameQueue.removeSession(this);
     }
 
     public void playerDisconnected(Peer peer) {
-        if (player1 != null) {
-            player1.setCurrentGame(null);
-            player1.setPlayerRole(null);
-            player1.setInGame(false);
-            player2.setInGame(false);
+        Peer remainingPlayer = (peer == player1) ? player2 : player1;
+        if (remainingPlayer != null) {
+            remainingPlayer.sendMessage(new Message(MessageType.GAME_END, "OPPONENT_DISCONNECTED"));
+
+            remainingPlayer.setCurrentGame(null);
+            remainingPlayer.setInGame(false);
+            remainingPlayer.setPlayerRole(null);
         }
-        if (player2 != null) {
-            player2.setCurrentGame(null);
-            player2.setPlayerRole(null);
-            player1.setInGame(false);
-            player2.setInGame(false);
-        }
+
+        peer.setCurrentGame(null);
+        peer.setInGame(false);
+        peer.setPlayerRole(null);
+
         GameQueue.removeSession(this);
     }
 }

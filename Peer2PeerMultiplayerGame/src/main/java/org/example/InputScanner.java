@@ -7,37 +7,45 @@ public class InputScanner extends Thread {
     public void run() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            String body = scanner.nextLine();
+            String input = scanner.nextLine().trim();
             Peer self = Peer.getSelf();
 
             if (self.getInGame()) {
-                if (Integer.parseInt(body) < 1 || Integer.parseInt(body) > 7) {
-                    System.out.println("<!> Wrong input");
+                try {
+                    int column = Integer.parseInt(input);
+                    if (column < 1 || column > 7) {
+                        System.out.println("Invalid column! Choose 1-7");
+                        continue;
+                    }
+                    self.sendMessage(new Message(MessageType.GAME_MOVE, input + ";" + self.getPlayerRole()));
+                } catch (NumberFormatException e) {
+                    System.out.println("Please enter a number between 1-7");
+                }
+            }
+            else if (input.equalsIgnoreCase("/play")) {
+                if (self.getInQueue() || self.getInGame()) {
+                    System.out.println("You're already in queue or in a game");
                     continue;
                 }
 
-                Peer.getSelf().sendMessage(new Message(MessageType.GAME_MOVE, body));
-            }
-            if (body.contains("/play")) {
-                Peer localPeer = Peer.getSelf();
-                if (localPeer != null && !localPeer.getInQueue()) {
-                    if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
-                        GameQueue.joinLobby(localPeer);
-                    } else {
-                        Peer bootstrapPeer = null;
-                        for (Peer peer : PeerList.getPeers()) {
-                            if (peer.getIp().equals(Constants.BOOTSTRAP_IP)) {
-                                bootstrapPeer = peer;
-                                break;
-                            }
-                        }
-                        if (bootstrapPeer != null) {
-                            bootstrapPeer.sendMessage(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
-                            localPeer.setInQueue(true);
-                            System.out.println("Added " + Constants.USERNAME + " to queue");
+                System.out.println("Joining matchmaking queue...");
+                if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+                    GameQueue.joinLobby(self);
+                } else {
+                    // Find bootstrap peer
+                    for (Peer peer : PeerList.getPeers()) {
+                        if (peer.getIp().equals(Constants.BOOTSTRAP_IP)) {
+                            peer.sendMessage(new Message(MessageType.PLAY_REQUEST, Constants.USERNAME));
+                            self.setInQueue(true);
+                            System.out.println("Added to queue");
+                            break;
                         }
                     }
                 }
+            }
+            else {
+                Message chatMsg = new Message(MessageType.CHAT, input);
+                PeerList.broadcast(chatMsg);
             }
         }
     }

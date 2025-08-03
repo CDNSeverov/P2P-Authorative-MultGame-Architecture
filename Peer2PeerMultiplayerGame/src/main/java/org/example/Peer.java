@@ -79,6 +79,10 @@ public class Peer implements Runnable{
             System.out.println("<!> Could not send message to peer");
         }
     }
+    public static void broadcastChat(String message) {
+        Message chatMsg = new Message(MessageType.CHAT, message);
+        PeerList.broadcast(chatMsg);
+    }
 
     public String waitForMessage() {
         try {

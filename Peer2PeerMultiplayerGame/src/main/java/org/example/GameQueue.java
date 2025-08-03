@@ -39,8 +39,11 @@ public class GameQueue {
             Peer player1 = waitingPlayers.poll();
             Peer player2 = waitingPlayers.poll();
 
-            player1.sendMessage(new Message(MessageType.GAME_START, player2.getUsername()));
-            player2.sendMessage(new Message(MessageType.GAME_START, player1.getUsername()));
+            GameSession session = new GameSession(player1, player2);
+            activeSessions.add(session);
+
+            player1.sendMessage(new Message(MessageType.GAME_START, "PLAYER2:" + player2.getUsername()));
+            player2.sendMessage(new Message(MessageType.GAME_START, "PLAYER1:" + player1.getUsername()));
         }
     }
 

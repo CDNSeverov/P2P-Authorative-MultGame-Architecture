@@ -1,4 +1,3 @@
-
 networks:
   p2p-network:
     driver: bridge
@@ -42,6 +41,20 @@ services:
       MY_IP: "192.168.0.28"
       BOOTSTRAP_IP: "192.168.0.26"
       USERNAME: "peer3"
+    depends_on:
+      - bootstrap
+    stdin_open: true
+    tty: true
+
+  peer4:
+    build: .
+    networks:
+      p2p-network:
+        ipv4_address: 192.168.0.29
+    environment:
+      MY_IP: "192.168.0.29"
+      BOOTSTRAP_IP: "192.168.0.26"
+      USERNAME: "peer4"
     depends_on:
       - bootstrap
     stdin_open: true

@@ -1,5 +1,8 @@
 package org.example;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 public class GameSession {
@@ -24,12 +27,45 @@ public class GameSession {
         player1.setInGame(true);
         player2.setInGame(true);
 
+        if (Constants.MY_IP.equals(Constants.BOOTSTRAP_IP)) {
+            assignRandomAuthority();
+        }
+
         player1.setInQueue(false);
         player2.setInQueue(false);
         GameQueue.removeFromQueue(player1);
         GameQueue.removeFromQueue(player2);
 
         sendGameState();
+    }
+
+    private void assignRandomAuthority() {
+        List<Peer> candidates = new ArrayList<>(PeerList.getPeers());
+        candidates.remove(player1);
+        candidates.remove(player2);
+
+        if (!candidates.isEmpty()) {
+            Collections.shuffle(candidates);
+            Peer authority = candidates.get(0);
+            Authority.assignAuthority(sessionId, authority.getIp());
+
+            // Send assignment to authority
+            String initialState = game.printBoard();
+            String body = sessionId + ";" + player1.getPublicKey() + ";" + player2.getPublicKey() + ";" + initialState;
+            authority.sendMessage(new Message(MessageType.AUTHORITY_ASSIGN, body));
+        }
+    }
+
+    private Peer findAuthorityPeer() {
+        String authIp = Authority.getAuthorityIp(sessionId);
+        if (authIp == null) return null;
+
+        for (Peer peer : PeerList.getPeers()) {
+            if (peer.getIp().equals(authIp)) {
+                return peer;
+            }
+        }
+        return null;
     }
 
     public Peer getPlayer1() {
@@ -55,6 +91,16 @@ public class GameSession {
             return;
         }
 
+        if (Authority.getAuthorityIp(sessionId) != null) {
+            String moveData = role + ";" + column + ";" + game.turn;
+            String body = sessionId + ";" + moveData;
+
+            Peer authority = findAuthorityPeer();
+            if (authority != null) {
+                authority.sendMessage(new Message(MessageType.AUTHORITY_VERIFY, body));
+            }
+        }
+
         if (game.makeMove(column, role)) {
             sendGameState();
 
@@ -75,7 +121,7 @@ public class GameSession {
         player2.sendMessage(stateMessage);
     }
 
-    private void endGame(String result) {
+    public void endGame(String result) {
         Message resultMessage = new Message(MessageType.GAME_END, result);
 
         player1.sendMessage(resultMessage);

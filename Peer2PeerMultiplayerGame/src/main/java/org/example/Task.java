@@ -1,4 +1,3 @@
-// Task.java
 package org.example;
 
 public class Task {

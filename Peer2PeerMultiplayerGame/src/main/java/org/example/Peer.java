@@ -12,9 +12,10 @@ public class Peer implements Runnable{
     private boolean inGame = false;
     private boolean inQueue = false;
     private boolean connected = true;
-    private static Peer self;
+    private static Peer self = null;
     private String playerRole;
     private String remoteUsername;
+    private String publicKey;
 
     public Peer(Socket socket) throws IOException {
         this.socket = socket;
@@ -27,7 +28,9 @@ public class Peer implements Runnable{
         reader = new BufferedReader(inputStreamReader);
         writer = new BufferedWriter(outputStreamWriter);
 
-        self = this;
+        if (self == null) {
+            self = this;
+        }
     }
 
     public String getIp() {
@@ -48,6 +51,13 @@ public class Peer implements Runnable{
     }
     public boolean getInGame() {
         return inGame;
+    }
+    public String getPublicKey() {
+        return publicKey;
+    }
+
+    public void setPublicKey(String publicKey) {
+        this.publicKey = publicKey;
     }
     public void setInGame(boolean inGame) {
         this.inGame = inGame;

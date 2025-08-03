@@ -17,6 +17,7 @@ public class InputScanner extends Thread {
                         System.out.println("Invalid column! Choose 1-7");
                         continue;
                     }
+                    System.out.println(self.getUsername());
                     self.sendMessage(new Message(MessageType.GAME_MOVE, input + ";" + self.getPlayerRole()));
                 } catch (NumberFormatException e) {
                     System.out.println("Please enter a number between 1-7");

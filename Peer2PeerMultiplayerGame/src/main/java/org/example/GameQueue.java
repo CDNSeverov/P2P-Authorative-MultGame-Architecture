@@ -5,6 +5,7 @@ import java.util.*;
 public class GameQueue {
     public static Queue<Peer> waitingPlayers = new LinkedList<>();
     private static List<GameSession> activeSessions = new ArrayList<>();
+    private static final Map<String, GameSession> sessions = new HashMap<>();
 
     public static synchronized void joinLobby(Peer peer) {
         if (waitingPlayers.contains(peer) || peer.getInQueue()) {
@@ -47,7 +48,17 @@ public class GameQueue {
         }
     }
 
-    public static synchronized void removeSession(GameSession session) {
+    public static void addSession(GameSession session) {
+        activeSessions.add(session);
+        sessions.put(session.getSessionId(), session);
+    }
+
+    public static void removeSession(GameSession session) {
         activeSessions.remove(session);
+        sessions.remove(session.getSessionId());
+    }
+
+    public static GameSession getSession(String sessionId) {
+        return sessions.get(sessionId);
     }
 }

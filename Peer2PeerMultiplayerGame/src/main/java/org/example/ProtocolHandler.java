@@ -43,6 +43,9 @@ public class ProtocolHandler extends Thread{
                     case GAME_MOVE -> handleGameMove(task);
                     case GAME_STATE -> handleGameState(task);
                     case GAME_END -> handleGameEnd(task);
+                    case AUTHORITY_VERDICT -> handleAuthorityVerdict(task);
+                    case AUTHORITY_ASSIGN -> handleAuthorityAssign(task);
+                    case AUTHORITY_VERIFY -> handleAuthorityVerify(task);
                 }
             } catch (Exception e) {
                 System.out.println("<!> Something went wrong digesting the message");
@@ -222,4 +225,45 @@ public class ProtocolHandler extends Thread{
         System.out.println("Type /play to start a new game");
     }
 
+    private void handleAuthorityAssign(Task task) {
+        String[] tokens = task.message.body.split(";");
+        if (tokens.length < 4) return;
+
+        String sessionId = tokens[0];
+        String player1Key = tokens[1];
+        String player2Key = tokens[2];
+        String initialState = tokens[3];
+
+        // Initialize game state
+        Game game = new Game();
+        game.deserializeBoard(initialState);
+        Authority.storeGameState(sessionId, game);
+
+        // For testing
+        System.out.println("[AUTHORITY] Assigned to session: " + sessionId);
+    }
+
+    private void handleAuthorityVerify(Task task) {
+        String[] tokens = task.message.body.split(";");
+        if (tokens.length < 2) return;
+
+        String sessionId = tokens[0];
+        String moveData = tokens[1];
+        Authority.verifyMove(sessionId, moveData);
+    }
+
+    private void handleAuthorityVerdict(Task task) {
+        String[] tokens = task.message.body.split(";");
+        if (tokens.length < 2) return;
+
+        String sessionId = tokens[0];
+        String verdict = tokens[1];
+
+        if ("REJECT".equals(verdict)) {
+            GameSession session = GameQueue.getSession(sessionId);
+            if (session != null) {
+                session.endGame("CHEATING");
+            }
+        }
+    }
 }

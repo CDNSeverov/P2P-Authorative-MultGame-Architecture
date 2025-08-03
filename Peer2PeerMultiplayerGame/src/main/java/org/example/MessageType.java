@@ -9,5 +9,8 @@ public enum MessageType {
     GAME_START,
     GAME_MOVE,
     GAME_STATE,
-    GAME_END
+    GAME_END,
+    AUTHORITY_ASSIGN,
+    AUTHORITY_VERIFY,
+    AUTHORITY_VERDICT
 }
